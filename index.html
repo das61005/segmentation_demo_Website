@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>頸動脈分割AIデモ</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", sans-serif;
+      background: linear-gradient(to right, #e0f7fa, #f1f8e9);
+      color: #2c3e50;
+      text-align: center;
+      padding: 2em;
+    }
+
+    h1 {
+      font-size: 2.2em;
+      margin-bottom: 0.3em;
+    }
+
+    p {
+      font-size: 1.1em;
+      margin-bottom: 1em;
+    }
+
+    button {
+      background-color: #26a69a;
+      color: white;
+      border: none;
+      padding: 0.6em 1.2em;
+      font-size: 1em;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      margin: 0.5em;
+    }
+
+    button:hover {
+      background-color: #00796b;
+    }
+
+    input[type="file"] {
+      margin-top: 1em;
+      font-size: 1em;
+    }
+
+    #loading {
+      margin-top: 1em;
+      color: #555;
+      font-style: italic;
+    }
+
+    .image-container {
+      display: flex;
+      justify-content: center;
+      gap: 2em;
+      margin-top: 2em;
+      flex-wrap: wrap;
+    }
+
+    .image-card {
+      background-color: white;
+      padding: 1em;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      width: 45%;
+      transition: transform 0.3s ease;
+    }
+
+    .image-card:hover {
+      transform: translateY(-5px);
+    }
+
+    .image-card h3 {
+      margin-bottom: 0.5em;
+      color: #00796b;
+    }
+
+    .image-card img {
+      max-width: 100%;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      transition: transform 0.3s ease;
+    }
+
+    .image-card img:hover {
+      transform: scale(1.02);
+    }
+
+    @media (max-width: 768px) {
+      .image-card {
+        width: 90%;
+      }
+    }
+  </style>
+</head>
+<body onload="checkLogin()">
+  <h1>頸動脈分割AIデモ</h1>
+  <p id="welcome-message"></p>
+  <button onclick="logout()">ログアウト</button>
+
+  <input type="file" id="image-input" accept="image/*">
+  <br>
+  <button onclick="getSegmentation()">解析開始</button>
+
+  <div id="loading" style="display:none;">処理中です。しばらくお待ちください...</div>
+
+  <div class="image-container">
+    <div class="image-card">
+      <h3>アップロード画像</h3>
+      <img id="original-image" alt="元画像がここに表示されます">
+    </div>
+    <div class="image-card">
+      <h3>分割結果</h3>
+      <img id="result-image" alt="分割結果がここに表示されます">
+    </div>
+  </div>
+
+  <script>
+    function checkLogin() {
+      const token = localStorage.getItem('token');
+      const username = localStorage.getItem('username');
+      if (!token || !username) {
+        alert('ログインしてください');
+        window.location.href = 'login.html';
+      } else {
+        document.getElementById('welcome-message').textContent = `${username} さん、ようこそ！`;
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('token');
+      localStorage.removeItem('username');
+      alert('ログアウトしました');
+      window.location.href = 'login.html';
+    }
+
+    async function getSegmentation() {
+      const fileInput = document.getElementById('image-input');
+      const file = fileInput.files[0];
+      if (!file) {
+        alert('画像を選択してください');
+        return;
+      }
+
+      // 元画像を表示
+      const originalUrl = URL.createObjectURL(file);
+      document.getElementById('original-image').src = originalUrl;
+
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const API_URL = 'https://breathing51522-unet-carotid-segmentation.hf.space/predict';
+      document.getElementById('loading').style.display = 'block';
+
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (response.ok) {
+          const imageBlob = await response.blob();
+          const imageUrl = URL.createObjectURL(imageBlob);
+          document.getElementById('result-image').src = imageUrl;
+        } else {
+          const errorData = await response.json();
+          alert('解析失敗: ' + errorData.error);
+        }
+      } catch (error) {
+        alert('通信エラーです。ネットワークを確認するか、管理者に連絡してください。');
+        console.error(error);
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+      }
+    }
+  </script>
+</body>
+</html>
